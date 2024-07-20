@@ -1,6 +1,8 @@
 import React from 'react';
 import { Form, Input, Button, notification } from 'antd';
 import './Forms.css';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const passportIDValidator = (_, value) => {
   if (!value) {
@@ -8,7 +10,7 @@ const passportIDValidator = (_, value) => {
   }
   const regex = /^[A-Z]{2}\d{7}$/;
   if (!regex.test(value)) {
-    return Promise.reject(new Error('Pasport raqami ikkita harf va 7 ta raqamdan tashkil topishi kerak !?'));
+    return Promise.reject(new Error('Pasport raqami faqat ikkita katta harf va 7 ta raqamdan tashkil topishi kerak !?'));
   }
   return Promise.resolve();
 };
@@ -19,7 +21,7 @@ const passwordValidator = (_, value) => {
   }
   const regex = /^\d{9}$/;
   if (!regex.test(value)) {
-    return Promise.reject(new Error('Parol 9 ta raqamdan iborat bo\'lishi kerak'));
+    return Promise.reject(new Error('Parol 9 ta raqamdan iborat bo"lishi kerak'));
   }
   return Promise.resolve();
 };
@@ -39,6 +41,14 @@ const capitalizeUser = (string) => {
   return string.toUpperCase();
 };
 
+const formatPassportID = (value) => {
+  const cleanedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const letters = cleanedValue.slice(0, 2); 
+  const digits = cleanedValue.slice(2);    
+  const formattedDigits = digits.replace(/\D/g, '').slice(0, 7);
+  return letters + formattedDigits;
+};
+
 const Forms = () => {
   const [form] = Form.useForm();
 
@@ -49,8 +59,7 @@ const Forms = () => {
 
   const handlePasswordChange = (e) => {
     const value = e.target.value;
-    // Allow only numeric input and limit length to 9 digits
-    const numericValue = value.replace(/\D/g, ''); // Remove non-numeric characters
+    const numericValue = value.replace(/\D/g, ''); 
     if (numericValue.length <= 9) {
       form.setFieldsValue({ password: numericValue });
     }
@@ -58,12 +67,24 @@ const Forms = () => {
 
   const handlePhoneChange = (e) => {
     const value = e.target.value;
-    // Remove non-numeric characters except '+'
     const numericValue = value.replace(/[^+\d]/g, '');
-    // Allow up to 13 characters (+998 + 9 digits)
     if (numericValue.length <= 13) {
       form.setFieldsValue({ phone: numericValue });
     }
+  };
+
+  const handlePassportIDChange = (e) => {
+    const value = e.target.value;
+    form.setFieldsValue({ passportID: formatPassportID(value) });
+  };
+
+  const exportToExcel = (data, fileName) => {
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const dataBlob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(dataBlob, `${fileName}.xlsx`);
   };
 
   const onFinish = (values) => {
@@ -72,6 +93,7 @@ const Forms = () => {
       message: 'Congratulations!',
       description: 'Barcha malumotlarni to\'g\'ri kiritdingiz 👍🎉✔',
     });
+    exportToExcel([values], 'Form_Data');
   };
 
   const onFinishFailed = (errorInfo) => {
@@ -98,24 +120,27 @@ const Forms = () => {
         onFinishFailed={onFinishFailed}
       >
         <Form.Item
-          label="Username"
+          label="Ism"
           name="username"
           rules={[
             {
               validator: (_, value) => {
                 if (!value) {
-                  return Promise.reject(new Error('Please input your username!'));
+                  return Promise.reject(new Error('Iltimos ismingizni kiriting !'));
                 }
                 return Promise.resolve();
               },
             },
           ]}
         >
-          <Input onChange={handleUsernameChange} />
+          <Input
+           onChange={handleUsernameChange}
+           placeholder="Ismingizni kiriting "
+           />
         </Form.Item>
 
         <Form.Item
-          label="Password"
+          label="Parol"
           name="password"
           rules={[
             {
@@ -126,13 +151,13 @@ const Forms = () => {
           <Input 
             type="text" 
             onChange={handlePasswordChange} 
-            maxLength={9} // Enforce length limit
-            placeholder="Enter 9-digit password"
+            maxLength={9}
+            placeholder="9 xonali parolni kiriting "
           />
         </Form.Item>
 
         <Form.Item
-          label="Phone"
+          label="Telefon raqam"
           name="phone"
           rules={[
             {
@@ -142,8 +167,8 @@ const Forms = () => {
         >
           <Input 
             onChange={handlePhoneChange}
-            placeholder="Enter phone number"
-            maxLength={13} // Limit input length to 13 characters
+            placeholder="Raqamingizni kiriting !"
+            maxLength={13}
           />
         </Form.Item>
 
@@ -156,7 +181,10 @@ const Forms = () => {
             },
           ]}
         >
-          <Input />
+          <Input
+           onChange={handlePassportIDChange}
+             placeholder="Passport ID ni kiriting !"
+           />
         </Form.Item>
 
         <Form.Item
